@@ -5,6 +5,7 @@ import sbt._
 import sbt.Keys._
 
 object Plugin extends sbt.Plugin {
+
   import LicenseKeys._
   
   object LicenseKeys {  
