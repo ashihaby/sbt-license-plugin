@@ -6,4 +6,4 @@ name := "sbt-license-plugin"
 
 organization := "com.banno" 
 
-seq(scriptedSettings:_*)
+scriptedSettings
