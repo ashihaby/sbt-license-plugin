@@ -1,5 +1,4 @@
-package com.banno
-package license
+import com.banno.license
 
 object Licenses {
   

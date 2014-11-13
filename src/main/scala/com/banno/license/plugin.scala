@@ -1,5 +1,4 @@
-package com.banno
-package license
+package com.banno.license
 
 import sbt._
 import sbt.Keys._
@@ -8,7 +7,8 @@ object Plugin extends sbt.Plugin {
   import LicenseKeys._
   
   object LicenseKeys {  
-    lazy val formatLicenseHeaders = TaskKey[Unit]("formatLicenseHeaders", "Includes the license header to source files")
+    lazy val formatLicenseHeaders = TaskKey[Unit]("format-license-headers", "Includes the license header to source files")
+    lazy val formatLicenseHeadersInTest = TaskKey[Unit]("format-license-headers-test", "Includes the license header to test source files")
     lazy val license = SettingKey[String]("license", "The license text to use")
     lazy val removeExistingHeaderBlock = SettingKey[Boolean]("removeExistingHeaderBlock", "Removes existing header blocks")
   }  
@@ -17,7 +17,9 @@ object Plugin extends sbt.Plugin {
     license := "Replace this with your license text!",
     removeExistingHeaderBlock := false,
     formatLicenseHeaders <<= formatLicenseHeadersTask,
-    compileInputs in Compile <<= compileInputs in Compile dependsOn formatLicenseHeaders
+    formatLicenseHeadersInTest <<= formatLicenseHeadersInTestTask,
+    compile in Compile <<= compile in Compile dependsOn (formatLicenseHeaders in Compile),
+    compile in Test <<= compile in Test dependsOn (formatLicenseHeadersInTest in Test)
   )  
   
   private val lineSeparator = System.getProperty("line.separator")
@@ -44,7 +46,7 @@ object Plugin extends sbt.Plugin {
   
   private def commentedLicenseTextLines(licenseText: String): List[String] = {
     val commentedLines = licenseText.split('\n').map { line => " * " + line }.toList
-    ("/*" :: commentedLines ::: " */" :: Nil)
+    ("/**" :: commentedLines ::: " */" :: Nil)
   }    
   
   private def alreadyHasHeader(fileContents: String, header: List[String]): Boolean =
@@ -54,14 +56,13 @@ object Plugin extends sbt.Plugin {
     
   private def withoutExistingHeaderBlock(fileContents: String): String = {
     fileContents.split(lineSeparator).dropWhile { line =>
-      line.startsWith("/*") || 
+      line.startsWith("/**") || 
       line.startsWith(" *")
     } mkString(lineSeparator)
   }
   
   private def modifySources(sourceDir: File, licenseText: String, 
     removeExistingHeaders: Boolean, log: Logger) = {
-      
     val header = commentedLicenseTextLines(licenseText)
     
     (sourceDir ** "*.scala").get foreach { path =>
@@ -72,11 +73,14 @@ object Plugin extends sbt.Plugin {
     }
   }
   
-  private def formatLicenseHeadersTask = 
-    (streams, scalaSource in Compile, license in formatLicenseHeaders, removeExistingHeaderBlock in formatLicenseHeaders) map {
+  def formatLicenseHeadersTask = formatLicense(scalaSource in Compile)
+  
+  def formatLicenseHeadersInTestTask = formatLicense(scalaSource in Test)
+
+  private def formatLicense(sources: SettingKey[File]) =
+    (streams, sources, license in formatLicenseHeaders, removeExistingHeaderBlock in formatLicenseHeaders) map {
       (out, sourceDir, lic, removeHeader) =>
         modifySources(sourceDir, lic, removeHeader, out.log)
     } 
-    
   
 }
